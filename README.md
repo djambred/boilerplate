@@ -3,12 +3,12 @@
 | 📈 Metric                      | 🔢 Value |
 |-------------------------------|----------|
 | 🧲 Total Clones (14 days)     | <!--CLONE_COUNT--> 275 
-| 👤 Unique Visitors (14 days)  | <!--UNIQUE_CLONE--> 151 
-| 👀 Total Views (14 days)      | <!--VIEW_COUNT--> 1693 
-| 🧍 Unique Viewers (14 days)   | <!--UNIQUE_VIEWS--> 289 
+| 👤 Unique Visitors (14 days)  | <!--UNIQUE_CLONE--> 150 
+| 👀 Total Views (14 days)      | <!--VIEW_COUNT--> 1654 
+| 🧍 Unique Viewers (14 days)   | <!--UNIQUE_VIEWS--> 286 
 | ⭐ Stars                       | <!--STARS--> 1 
 | 🍴 Forks                      | <!--FORKS--> 0 
-| 🕒 Last Updated               | <!--LAST_UPDATED--> 2025-07-28 00:55:22 UTC 
+| 🕒 Last Updated               | <!--LAST_UPDATED--> 2025-07-29 00:56:31 UTC 
 
 
 
