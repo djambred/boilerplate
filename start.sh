@@ -301,7 +301,26 @@ update_zshrc() {
 _get_php_container_name() { docker ps --filter "name=_php" --format "{{.Names}}" | head -n 1; }
 dcr() { [ -z "$1" ] && { echo "❌ Usage: dcr <ModelName>"; return 1; }; local C=$(_get_php_container_name); [ -z "$C" ] && { echo "❌ Kontainer PHP tidak ditemukan."; return 1; }; local N="$1"; local NS=$(echo "$N" | sed -E 's/([a-z])([A-Z])/\1_\2/g' | tr '[:upper:]' '[:lower:]'); local NP="${NS}s"; echo "🗑 Menghapus file untuk '$N'..."; docker exec "$C" rm -f "app/Models/$N.php" "app/Http/Controllers/${N}Controller.php" "database/seeders/${N}Seeder.php" "app/Policies/${N}Policy.php"; docker exec "$C" find database/migrations -type f -name "*create_${NP}_table.php" -delete; docker exec "$C" rm -rf "app/Filament/Admin/Resources/${N}Resource.php"; }
 dcm() { [ -z "$1" ] && { echo "❌ Usage: dcm <ModelName>"; return 1; }; local C=$(_get_php_container_name); [ -z "$C" ] && { echo "❌ Kontainer PHP tidak ditemukan."; return 1; }; docker exec -it "$C" php artisan make:model "$1" -msc; docker exec -it "$C" php artisan make:filament-resource "$1" --generate; }
-dcp() { [ $# -eq 0 ] && { echo "❌ Usage: dcp <commit message>"; return 1; }; git pull --rebase origin main && git add . && git commit -m "$*" && git push; }
+dcp() {
+  if [ $# -eq 0 ]; then
+    echo "❌ Usage: dcp your commit message"
+    return 1
+  fi
+
+  if ! git diff --quiet || ! git diff --cached --quiet; then
+    echo "⚠️ Warning: You have uncommitted changes."
+  fi
+
+  if ! git pull --rebase origin main; then
+    echo "❌ Rebase failed. Resolve conflicts manually."
+    return 1
+  fi
+
+  git add .
+  git commit -m "$*"
+  git push -u origin main
+  echo "✅ Changes pushed to origin/main."
+}
 dcd() { local P=$(docker ps --format "{{.Names}}" | grep _php | head -n 1 | cut -d'_' -f1); [ -n "$P" ] && docker compose -p "$P" down || echo "❌ Tidak dapat mendeteksi proyek."; }
 alias dcu='docker compose up -d'
 alias dca='docker exec -it $(_get_php_container_name) php artisan'
