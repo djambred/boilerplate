@@ -324,6 +324,7 @@ dcp() {
 dcd() { local P=$(docker ps --format "{{.Names}}" | grep _php | head -n 1 | cut -d'_' -f1); [ -n "$P" ] && docker compose -p "$P" down || echo "❌ Tidak dapat mendeteksi proyek."; }
 alias dcu='docker compose up -d'
 alias dca='docker exec -it $(_get_php_container_name) php artisan'
+alias dci='docker exec -it $(docker ps --filter "name=_php" --format "{{.Names}}" | head -n 1) php artisan project:init'
 # === BOILERPLATE END ===
 EOF
 }
