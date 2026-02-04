@@ -6,7 +6,7 @@ echo "🚀 Starting Laravel container setup..."
 # Step 1: Create Laravel project if not already present
 if [ -z "$(find /var/www/html -mindepth 1 -not -path '/var/www/html/.gitkeep' -print -quit)" ]; then
   echo "📦 Creating Laravel project (fila-starter)..."
-  composer create-project --prefer-dist raugadh/fila-starter . --no-interaction
+  composer create-project --prefer-dist raugadh/fila-starter:2.0 . --no-interaction
 else
   echo "✅ Laravel project already exists. Skipping create-project."
 fi
