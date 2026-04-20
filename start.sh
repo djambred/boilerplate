@@ -299,8 +299,49 @@ update_zshrc() {
   cat <<'EOF' >>"$ZSHRC_FILE"
 # === BOILERPLATE START ===
 _get_php_container_name() { docker ps --filter "name=_php" --format "{{.Names}}" | head -n 1; }
-dcr() { [ -z "$1" ] && { echo "❌ Usage: dcr <ModelName>"; return 1; }; local C=$(_get_php_container_name); [ -z "$C" ] && { echo "❌ Kontainer PHP tidak ditemukan."; return 1; }; local N="$1"; local NS=$(echo "$N" | sed -E 's/([a-z])([A-Z])/\1_\2/g' | tr '[:upper:]' '[:lower:]'); local NP="${NS}s"; echo "🗑 Menghapus file untuk '$N'..."; docker exec "$C" rm -f "app/Models/$N.php" "app/Http/Controllers/${N}Controller.php" "database/seeders/${N}Seeder.php" "app/Policies/${N}Policy.php"; docker exec "$C" find database/migrations -type f -name "*create_${NP}_table.php" -delete; docker exec "$C" rm -rf "app/Filament/Admin/Resources/${N}Resource.php"; }
-dcm() { [ -z "$1" ] && { echo "❌ Usage: dcm <ModelName>"; return 1; }; local C=$(_get_php_container_name); [ -z "$C" ] && { echo "❌ Kontainer PHP tidak ditemukan."; return 1; }; docker exec -it "$C" php artisan make:model "$1" -msc; docker exec -it "$C" php artisan make:filament-resource "$1" --generate; }
+unalias dcr 2>/dev/null
+dcr() {
+  local NAME="$1"
+  if [ -z "$NAME" ]; then
+    echo "❌ Usage: dcr <ModelName>"
+    return 1
+  fi
+
+  local CONTAINER=$(docker ps --filter "name=_php" --format "{{.Names}}" | head -n 1)
+  if [ -z "$CONTAINER" ]; then
+    echo "❌ No PHP container found."
+    return 1
+  fi
+
+  local NAME_SNAKE=$(echo "$NAME" | sed -E 's/([a-z])([A-Z])/\1_\2/g' | tr '[:upper:]' '[:lower:]')
+  local NAME_PLURAL="${NAME_SNAKE}s"
+
+  echo "🗑 Removing $NAME files from container: $CONTAINER"
+  docker exec "$CONTAINER" bash -c "rm -f app/Models/$NAME.php"
+  docker exec "$CONTAINER" bash -c "rm -f app/Http/Controllers/${NAME}Controller.php"
+  docker exec "$CONTAINER" bash -c "rm -f database/seeders/${NAME}Seeder.php"
+  docker exec "$CONTAINER" bash -c "find database/migrations -type f -name '*create_${NAME_PLURAL}_table*.php' -delete"
+  docker exec "$CONTAINER" bash -c "rm -rf app/Filament/Admin/Resources/${NAME}*"
+  docker exec "$CONTAINER" bash -c "rm -f app/Policies/${NAME}Policy.php"
+  echo "✅ Done Remove: $NAME"
+}
+unalias dcm 2>/dev/null
+dcm() {
+  if [ -z "$1" ]; then
+    echo "❌ Usage: dcm <ModelName>"
+    return 1
+  fi
+  local CONTAINER=$(docker ps --filter "name=_php" --format "{{.Names}}" | head -n 1)
+  if [ -z "$CONTAINER" ]; then
+    echo "❌ PHP container not found."
+    return 1
+  fi
+  local NAME="$1"
+  docker exec -it "$CONTAINER" art make:model "$NAME" -msc
+  docker exec -it "$CONTAINER" art make:filament-resource "$NAME" --generate
+  echo "✅ $NAME scaffolded with Filament."
+}
+unalias dcp 2>/dev/null
 dcp() {
   if [ $# -eq 0 ]; then
     echo "❌ Usage: dcp your commit message"
@@ -324,7 +365,7 @@ dcp() {
 dcd() { local P=$(docker ps --format "{{.Names}}" | grep _php | head -n 1 | cut -d'_' -f1); [ -n "$P" ] && docker compose -p "$P" down || echo "❌ Tidak dapat mendeteksi proyek."; }
 alias dcu='docker compose up -d'
 alias dca='docker exec -it $(_get_php_container_name) php artisan'
-alias dci='docker exec -it $(docker ps --filter "name=_php" --format "{{.Names}}" | head -n 1) php artisan project:init'
+alias dci='docker exec -it $(_get_php_container_name) php artisan project:init'
 # === BOILERPLATE END ===
 EOF
 }
