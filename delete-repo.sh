@@ -15,10 +15,33 @@ GITHUB_TOKEN=$(<.github-token)
 
 echo "📥 Fetching repositories for user: $GITHUB_USER with prefix: $PREFIX"
 
-# Fetch repos matching prefix
-REPOS=$(curl -s -u "$GITHUB_USER:$GITHUB_TOKEN" \
-  "https://api.github.com/user/repos?per_page=100" | \
-  jq -r --arg prefix "^$PREFIX" '.[] | select(.name | test($prefix)) | .full_name')
+# Fetch all repos with pagination
+PAGE=1
+REPOS=""
+while true; do
+  RESPONSE=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+    "https://api.github.com/user/repos?per_page=100&page=$PAGE")
+
+  # Check for API errors
+  ERROR=$(echo "$RESPONSE" | jq -r '.message // empty' 2>/dev/null || true)
+  if [ -n "$ERROR" ]; then
+    echo "❌ GitHub API error: $ERROR"
+    exit 1
+  fi
+
+  PAGE_REPOS=$(echo "$RESPONSE" | jq -r --arg prefix "^$PREFIX$" \
+    '.[] | select(.name | test($prefix)) | .full_name' 2>/dev/null || true)
+
+  if [ -n "$PAGE_REPOS" ]; then
+    REPOS="${REPOS}${REPOS:+$'\n'}${PAGE_REPOS}"
+  fi
+
+  COUNT=$(echo "$RESPONSE" | jq '. | length' 2>/dev/null || echo 0)
+  if [ "$COUNT" -lt 100 ]; then
+    break
+  fi
+  PAGE=$((PAGE + 1))
+done
 
 # Check if any matching repos
 if [ -z "$REPOS" ]; then
@@ -38,7 +61,7 @@ fi
 # Delete repos
 for REPO in $REPOS; do
   echo "🚨 Deleting $REPO..."
-  curl -s -X DELETE -u "$GITHUB_USER:$GITHUB_TOKEN" \
+  curl -s -X DELETE -H "Authorization: token $GITHUB_TOKEN" \
     "https://api.github.com/repos/$REPO"
 done
 
