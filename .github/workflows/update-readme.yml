@@ -56,4 +56,5 @@ jobs:
 
           git add README.md
           git commit -m "🔄 Update GitHub stats in README" || echo "No changes"
+          git pull --rebase origin HEAD
           git push origin HEAD
