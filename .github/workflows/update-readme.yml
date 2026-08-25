@@ -5,6 +5,9 @@ on:
     - cron: '0 0 * * *'  # Daily at midnight UTC
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   update-readme:
     runs-on: ubuntu-latest
@@ -17,22 +20,37 @@ jobs:
         run: sudo apt-get install -y jq
 
       - name: Fetch GitHub stats and update README.md
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
           repo="${{ github.repository }}"
-          token="${{ secrets.GH_TOKEN }}"
+          token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+          if [ -z "$token" ]; then
+            echo "No token available for GitHub API access"
+            exit 1
+          fi
 
           # Get stats from GitHub API
-          CLONES=$(curl -s -H "Authorization: token $token" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/$repo/traffic/clones)
-          VIEWS=$(curl -s -H "Authorization: token $token" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/$repo/traffic/views)
-          META=$(curl -s -H "Authorization: token $token" https://api.github.com/repos/$repo)
+          CLONES=$(curl -fsS -H "Authorization: token $token" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/$repo/traffic/clones)
+          VIEWS=$(curl -fsS -H "Authorization: token $token" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/$repo/traffic/views)
+          META=$(curl -fsS -H "Authorization: token $token" https://api.github.com/repos/$repo)
+
+          if echo "$CLONES" | jq -e '.message? != null' >/dev/null || \
+             echo "$VIEWS" | jq -e '.message? != null' >/dev/null || \
+             echo "$META" | jq -e '.message? != null' >/dev/null; then
+            echo "GitHub API returned an error response"
+            exit 1
+          fi
 
           # Extract values
-          CLONE_COUNT=$(echo "$CLONES" | jq '.count')
-          UNIQUE_CLONE=$(echo "$CLONES" | jq '.uniques')
-          VIEW_COUNT=$(echo "$VIEWS" | jq '.count')
-          UNIQUE_VIEW=$(echo "$VIEWS" | jq '.uniques')
-          STARS=$(echo "$META" | jq '.stargazers_count')
-          FORKS=$(echo "$META" | jq '.forks_count')
+          CLONE_COUNT=$(echo "$CLONES" | jq -er '.count')
+          UNIQUE_CLONE=$(echo "$CLONES" | jq -er '.uniques')
+          VIEW_COUNT=$(echo "$VIEWS" | jq -er '.count')
+          UNIQUE_VIEW=$(echo "$VIEWS" | jq -er '.uniques')
+          STARS=$(echo "$META" | jq -er '.stargazers_count')
+          FORKS=$(echo "$META" | jq -er '.forks_count')
           UPDATED=$(date -u +'%Y-%m-%d %H:%M:%S UTC')
 
           # Replace table values in README.md
@@ -44,16 +62,28 @@ jobs:
           sed -i "s|<!--FORKS-->.*|<!--FORKS--> $FORKS |" README.md
           sed -i "s|<!--LAST_UPDATED-->.*|<!--LAST_UPDATED--> $UPDATED |" README.md
 
-      - name: Commit & Push with GH_TOKEN
+      - name: Commit & Push
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
+          token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+          if [ -z "$token" ]; then
+            echo "No token available for git push"
+            exit 1
+          fi
+
           git config user.name "djambred"
           git config user.email "djambred@users.noreply.github.com"
 
           # Set origin remote with token for authenticated push
-          git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}
+          git remote set-url origin https://x-access-token:${token}@github.com/${{ github.repository }}
 
           git add README.md
-          git commit -m "🔄 Update GitHub stats in README" || echo "No changes"
+          if git diff --cached --quiet; then
+            echo "No changes"
+            exit 0
+          fi
+          git commit -m "🔄 Update GitHub stats in README"
           git push origin HEAD
