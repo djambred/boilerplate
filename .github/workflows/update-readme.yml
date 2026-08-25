@@ -27,12 +27,12 @@ jobs:
           META=$(curl -s -H "Authorization: token $token" https://api.github.com/repos/$repo)
 
           # Extract values
-          CLONE_COUNT=$(echo "$CLONES" | jq '.count')
-          UNIQUE_CLONE=$(echo "$CLONES" | jq '.uniques')
-          VIEW_COUNT=$(echo "$VIEWS" | jq '.count')
-          UNIQUE_VIEW=$(echo "$VIEWS" | jq '.uniques')
-          STARS=$(echo "$META" | jq '.stargazers_count')
-          FORKS=$(echo "$META" | jq '.forks_count')
+          CLONE_COUNT=$(echo "$CLONES" | jq '.count // 0')
+          UNIQUE_CLONE=$(echo "$CLONES" | jq '.uniques // 0')
+          VIEW_COUNT=$(echo "$VIEWS" | jq '.count // 0')
+          UNIQUE_VIEW=$(echo "$VIEWS" | jq '.uniques // 0')
+          STARS=$(echo "$META" | jq '.stargazers_count // 0')
+          FORKS=$(echo "$META" | jq '.forks_count // 0')
           UPDATED=$(date -u +'%Y-%m-%d %H:%M:%S UTC')
 
           # Replace table values in README.md
